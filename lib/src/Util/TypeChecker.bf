@@ -32,5 +32,10 @@ namespace JSON_Beef.Util
 		{
 			return type.IsPrimitive || (typeof(String) == type);
 		}
+
+		public static bool IsEnum(Type type)
+		{
+			return type.IsEnum;
+		}
 	}
 }

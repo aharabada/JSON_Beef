@@ -154,6 +154,10 @@ namespace JSON_Beef.Serialization
 				{
 					Try!(SetPrimitiveField(field, jsonObject, object));
 				}
+				else if (TypeChecker.IsEnum(field.FieldType))
+				{
+					Try!(SetEnumField(field, jsonObject, object));
+				}
 				else
 				{
 					return .Err(.ERROR_PARSING);
@@ -761,6 +765,47 @@ namespace JSON_Beef.Serialization
 			var fieldList = field.FieldType.CreateObject().Value;
 			Try!(DeserializeArray(dest, fieldList));
 			field.SetValue(tempObj, fieldList);
+
+			return .Ok;
+		}
+
+		private static Result<void, DESERIALIZE_ERRORS> SetEnumField(FieldInfo field, JSONObject jsonObject, Object obj)
+		{
+			let key = scope String(field.Name);
+
+			var strValue = scope String();
+			if (jsonObject.Get<String>(key, ref strValue) case .Err(let err))
+			{
+				return .Err(.ERROR_PARSING);
+			}
+
+			int enumValue = 0;
+
+			let enumInst = (TypeInstance)field.FieldType;
+			for (var enumField in enumInst.GetFields())
+			{
+				if (((StringView)strValue).Equals(enumField.[Friend]mFieldData.mName, true))
+				{
+					enumValue = enumField.[Friend]mFieldData.mData;
+				}
+			}
+
+			void* objAddr = ((uint8*)Internal.UnsafeCastToPtr(obj));
+			void* fieldAddr =  (void*)((int)objAddr + field.[Friend]mFieldData.mData);
+
+			switch(enumInst.Size)
+			{
+			case 1:
+				*((int8*)fieldAddr) = (int8)enumValue;
+			case 2:
+				*((int16*)fieldAddr) = (int16)enumValue;
+			case 4:
+				*((int32*)fieldAddr) = (int32)enumValue;
+			case 8:
+				*((int64*)fieldAddr) = (int64)enumValue;
+			default:
+				Runtime.NotImplemented();
+			}
 
 			return .Ok;
 		}

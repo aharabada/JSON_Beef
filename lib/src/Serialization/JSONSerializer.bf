@@ -157,7 +157,7 @@ namespace JSON_Beef.Serialization
 			}
 			return .Ok(str);
 		}
-
+		
 		private static bool IsList(Object object)
 		{
 			let type = object.GetType();
@@ -271,6 +271,30 @@ namespace JSON_Beef.Serialization
 						delete res.Value;
 					}
 				}
+			}
+			else if(fieldType.IsEnum)
+			{
+				void* enumData = fieldVariant.GetValueData();
+
+				int64 enumValue = 0;
+				switch(fieldType.Size)
+				{
+				case 1:
+					enumValue = *(int8*)enumData;
+				case 2:
+					enumValue = *(int16*)enumData;
+				case 4:
+					enumValue = *(int32*)enumData;
+				case 8:
+					enumValue = *(int64*)enumData;
+				default:
+					Runtime.NotImplemented();
+				}
+				
+				String valueStr = scope String();
+				Enum.EnumToString(fieldType, valueStr, enumValue);
+
+				json.Add<String>(fieldName, valueStr);
 			}
 
 			return .Ok;
