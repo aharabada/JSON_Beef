@@ -10,6 +10,15 @@ namespace JSON_Beef.Attributes
 	[AttributeUsage(.All, .ReflectAttribute | .AlwaysIncludeTarget)]
 	public struct SerializableAttribute: Attribute
 	{
+		public String FieldName;
+	
+		public this() => this = default;
+	
+		public this(String fieldName)
+		{
+			FieldName = fieldName;
+		}
+
 		public void TestAMethod()
 		{
 			Console.WriteLine("Test A method");

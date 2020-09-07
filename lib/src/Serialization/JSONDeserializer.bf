@@ -468,7 +468,7 @@ namespace JSON_Beef.Serialization
 
 		private static bool HasField(JSONObject jsonObj, Object obj, FieldInfo field)
 		{
-			let fieldName = scope String(field.Name);
+			let fieldName = FieldHelper.GetScopedFieldName!(field);
 			let fieldType = field.FieldType;
 
 			// null values are accepted as valid.
@@ -537,7 +537,7 @@ namespace JSON_Beef.Serialization
 		static Result<void, DESERIALIZE_ERRORS> SetPrimitiveField(FieldInfo field, JSONObject jsonObj, Object obj)
 		{
 			let type = field.FieldType;
-			let key = scope String(field.Name);
+			let key = FieldHelper.GetScopedFieldName!(field);
 
 			var tempObj = obj;
 			if (FieldHelper.HasFlag(field, .Static))
@@ -701,7 +701,7 @@ namespace JSON_Beef.Serialization
 
 		private static Result<void, DESERIALIZE_ERRORS> SetObjectField(FieldInfo field, JSONObject jsonObject, Object obj)
 		{
-			let key = scope String(field.Name);
+			let key = FieldHelper.GetScopedFieldName!(field);
 
 			var tempObj = obj;
 			if (FieldHelper.HasFlag(field, .Static))
@@ -736,7 +736,7 @@ namespace JSON_Beef.Serialization
 
 		private static Result<void, DESERIALIZE_ERRORS> SetArrayField(FieldInfo field, JSONObject jsonObject, Object obj)
 		{
-			let key = scope String(field.Name);
+			let key = FieldHelper.GetScopedFieldName!(field);
 
 			var tempObj = obj;
 			if (FieldHelper.HasFlag(field, .Static))
@@ -771,7 +771,7 @@ namespace JSON_Beef.Serialization
 
 		private static Result<void, DESERIALIZE_ERRORS> SetEnumField(FieldInfo field, JSONObject jsonObject, Object obj)
 		{
-			let key = scope String(field.Name);
+			let key = FieldHelper.GetScopedFieldName!(field);
 
 			var strValue = scope String();
 			if (jsonObject.Get<String>(key, ref strValue) case .Err(let err))

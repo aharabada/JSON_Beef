@@ -216,7 +216,7 @@ namespace JSON_Beef.Serialization
 
 		private static Result<void> SerializeObjectInternal(Object object, FieldInfo field, JSONObject json)
 		{
-			let fieldName = scope String(field.Name);
+			let fieldName = FieldHelper.GetScopedFieldName!(field);
 			let fieldType = field.FieldType;
 			Variant fieldVariant;
 
@@ -371,7 +371,8 @@ namespace JSON_Beef.Serialization
 							{
 								var payloadFieldType = enumField.FieldType;
 							}
-							
+
+							//FieldHelper.GetScopedFieldName!(field) Not needed, can't add attributes to enum cases
 							fieldNames.Add(enumField.Name);
 						}
 					}
@@ -440,7 +441,7 @@ namespace JSON_Beef.Serialization
 					continue;
 				}
 
-				let fieldName = scope String(field.Name);
+				let fieldName = FieldHelper.GetScopedFieldName!(field);
 				let fieldVariant = field.GetValue(object).Get();
 				let fieldVariantType = fieldVariant.VariantType;
 				var fieldValue = fieldVariant.Get<Object>();
