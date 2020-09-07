@@ -164,6 +164,56 @@ namespace JSON_Beef.Serialization
 			return .Ok(str);
 		}
 
+		/**
+		 * Its the same as field.GetValue(object) but without a crash when fieldType.UnderlyingType is null
+		*/
+		public static Result<Variant> GetValueButWithoutCrashes(FieldInfo field, Object target)
+		{
+			Variant value = Variant();
+
+			void* targetDataAddr;
+			if (target == null)
+			{
+				if (field.[Friend]mFieldData.mFlags.HasFlag(FieldFlags.Const))
+				{
+					return Variant.Create(field.[Friend]FieldType, &field.[Friend]mFieldData.mData);
+				}
+
+				if (!field.[Friend]mFieldData.mFlags.HasFlag(FieldFlags.Static))
+					return .Err;
+
+				targetDataAddr = null;
+			}
+			else
+			{
+				Type tTarget;
+				targetDataAddr = field.[Friend]GetDataPtrAndType(target, out tTarget);
+
+				if (!tTarget.IsSubtypeOf(field.[Friend]mTypeInstance))
+				    return .Err; //Invalid type;
+			}
+
+			targetDataAddr = (uint8*)targetDataAddr + (int)field.[Friend]mFieldData.mData;
+
+			Type fieldType = Type.[Friend]GetType(field.[Friend]mFieldData.mFieldTypeId);
+
+			TypeCode typeCode = fieldType.[Friend]mTypeCode;
+			if (typeCode == TypeCode.Enum && fieldType.UnderlyingType != null)
+				typeCode = fieldType.UnderlyingType.[Friend]mTypeCode;
+
+		    if (typeCode == TypeCode.Object)
+		    {
+				value.[Friend]mStructType = 0;
+		        value.[Friend]mData = *(int*)targetDataAddr;
+		    }
+			else
+			{
+				value = Variant.Create(fieldType, targetDataAddr);
+			}
+
+			return value;
+		}
+
 		private static Result<void> SerializeObjectInternal(Object object, FieldInfo field, JSONObject json)
 		{
 			let fieldName = scope String(field.Name);
@@ -176,7 +226,7 @@ namespace JSON_Beef.Serialization
 			}
 			else
 			{
-				fieldVariant = field.GetValue(object).Get();
+				fieldVariant = GetValueButWithoutCrashes(field, object).Get();
 			}
 
 			if (fieldType.IsPrimitive)
@@ -271,27 +321,98 @@ namespace JSON_Beef.Serialization
 			}
 			else if(fieldType.IsEnum)
 			{
-				void* enumData = fieldVariant.GetValueData();
-
-				int64 enumValue = 0;
-				switch(fieldType.Size)
+				if(fieldType.IsUnion)
 				{
-				case 1:
-					enumValue = *(int8*)enumData;
-				case 2:
-					enumValue = *(int16*)enumData;
-				case 4:
-					enumValue = *(int32*)enumData;
-				case 8:
-					enumValue = *(int64*)enumData;
-				default:
-					Runtime.NotImplemented();
-				}
-				
-				String valueStr = scope String();
-				Enum.EnumToString(fieldType, valueStr, enumValue);
+					var fields = fieldType.GetFields();
 
-				json.Add<String>(fieldName, valueStr);
+					List<StringView> fieldNames = scope List<StringView>();
+					
+					int enumValue = -1;
+
+					for (var enumField in fields)
+					{
+						if(enumField.[Friend]mFieldData.mFlags.HasFlag(.EnumDiscriminator))
+						{
+							var discriminatorType = enumField.FieldType;
+
+							// address of object
+							void* objAddr = ((uint8*)Internal.UnsafeCastToPtr(object));
+							// address of enum in object
+							void* fieldAddr =  (void*)((int)objAddr + field.[Friend]mFieldData.mData);
+							// address of discriminiator in enum
+							void* enumDataAddr =  (void*)((int)fieldAddr + enumField.[Friend]mFieldData.mData);
+
+							switch(discriminatorType.Size)
+							{
+							case 1:
+								enumValue = *(int8*)enumDataAddr;
+							case 2:
+								enumValue = *(int16*)enumDataAddr;
+							case 4:
+								enumValue = *(int32*)enumDataAddr;
+							case 8:
+								enumValue = *(int64*)enumDataAddr;
+							default:
+								Runtime.NotImplemented();
+							}
+						}
+						else if(enumField.[Friend]mFieldData.mFlags.HasFlag(.EnumPayload))
+						{
+							var payloadType = enumField.FieldType;
+
+							// Todo: serialize payload (type: tuple)
+						}
+						// Fields that are neither discriminator nor payload are the enum cases
+						else
+						{
+							var enumFieldType = enumField.FieldType;
+							
+							for (var payloadField in enumFieldType.GetFields())
+							{
+								var payloadFieldType = enumField.FieldType;
+							}
+							
+							fieldNames.Add(enumField.Name);
+						}
+					}
+					
+					if(enumValue == -1 || enumValue >= fieldNames.Count)
+						return .Err;
+
+					String valueStr = scope String();
+					valueStr.Append(fieldNames[enumValue]);
+
+					json.Add<String>(fieldName, valueStr);
+				}
+				else
+				{
+					void* enumDataAddr = fieldVariant.GetValueData();
+					
+					int enumValue = 0;
+					switch(fieldType.Size)
+					{
+					case 1:
+						enumValue = *(int8*)enumDataAddr;
+					case 2:
+						enumValue = *(int16*)enumDataAddr;
+					case 4:
+						enumValue = *(int32*)enumDataAddr;
+					case 8:
+						enumValue = *(int64*)enumDataAddr;
+					default:
+						Runtime.NotImplemented();
+					}
+
+					String valueStr = scope String();
+					Enum.EnumToString(fieldType, valueStr, enumValue);
+
+					json.Add<String>(fieldName, valueStr);
+				}
+			}
+			else if(fieldType.IsTuple)
+			{
+				// Todo: serialize tuple
+				Runtime.NotImplemented();
 			}
 
 			return .Ok;
